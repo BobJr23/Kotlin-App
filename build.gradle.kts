@@ -23,6 +23,7 @@ dependencies {
     implementation(compose.desktop.currentOs)
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("io.github.cdimascio:dotenv-kotlin:6.2.2")
+    implementation("org.json:json:20231013")
 }
 
 compose.desktop {

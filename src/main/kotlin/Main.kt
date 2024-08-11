@@ -29,6 +29,7 @@ val client = OkHttpClient()
 fun App() {
     var city by remember { mutableStateOf("") }
     var weather by remember { mutableStateOf("Enter a city and click the button to get the weather.") }
+    var forecast by remember { mutableStateOf("") }
     var condition by remember { mutableStateOf("clear") }
     val scope = rememberCoroutineScope()
     var isDarkTheme by remember { mutableStateOf(false) }
@@ -70,7 +71,15 @@ fun App() {
                 }) {
                     Text("Get Weather")
                 }
+                Button(onClick = {
+                    scope.launch {
+                        forecast = getWeatherForecast(city)
+                    }
+                }) {
+                    Text("Get 3-Day Forecast")
+                }
                 Text(weather)
+                Text(forecast)
             }
         }
     }
@@ -97,6 +106,42 @@ suspend fun getWeather(city: String): Pair<String, String> {
             }
         } catch (e: Exception) {
             Pair("Error fetching weather: ${e.message}", "clear")
+        }
+    }
+}
+
+@Composable
+fun UnitToggle(isCelsius: Boolean, onToggle: (Boolean) -> Unit) {
+    Row {
+        Text("Celsius")
+        Switch(checked = isCelsius, onCheckedChange = onToggle)
+        Text("Fahrenheit")
+    }
+}
+
+suspend fun getWeatherForecast(city: String): String {
+    return withContext(Dispatchers.IO) {
+        try {
+            val url = "https://api.weatherapi.com/v1/forecast.json?q=$city&key=$apiKey&days=3"
+            val request = Request.Builder().url(url).build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) throw IOException("Unexpected code $response")
+                val responseBody = response.body?.string() ?: return@withContext "No response body"
+                val json = JSONObject(responseBody)
+                val forecast = json.getJSONObject("forecast").getJSONArray("forecastday")
+                val forecastString = StringBuilder()
+                for (i in 0 until forecast.length()) {
+                    val day = forecast.getJSONObject(i)
+                    val date = day.getString("date")
+                    val condition = day.getJSONObject("day").getJSONObject("condition").getString("text")
+                    val tempC = day.getJSONObject("day").getDouble("avgtemp_c")
+                    val tempF = day.getJSONObject("day").getDouble("avgtemp_f")
+                    forecastString.append("Date: $date\nCondition: $condition\nTemperature: $tempF°F ($tempC°C)\n\n")
+                }
+                forecastString.toString()
+            }
+        } catch (e: Exception) {
+            "Error fetching weather forecast: ${e.message}"
         }
     }
 }

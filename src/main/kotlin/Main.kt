@@ -16,23 +16,24 @@ import okhttp3.Request
 import java.io.IOException
 import io.github.cdimascio.dotenv.Dotenv
 import org.json.JSONObject
-import java.io.Serializable
 
-
-// IDK the correct code style for typing
 val dotenv: Dotenv = Dotenv.load()
 val apiKey: String = dotenv["WEATHER_KEY"]
 val client = OkHttpClient()
+val ipApiKey: String = dotenv["IP_KEY"]
 
 @Composable
 @Preview
 fun App() {
-    var city by remember { mutableStateOf("") }
+    var location by remember { mutableStateOf(getLocation()) }
+    var city by remember { mutableStateOf(location.getString("city") + ", " + location.getString("country")) }
     var weather by remember { mutableStateOf("Enter a city and click the button to get the weather.") }
     var forecast by remember { mutableStateOf("") }
     var condition by remember { mutableStateOf("clear") }
+    var isCelsius by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
     var isDarkTheme by remember { mutableStateOf(false) }
+
 
     val colors: Colors = if (isDarkTheme) darkColors() else lightColors()
     val backgroundColor: Color = if (isDarkTheme) Color.DarkGray else Color.White
@@ -62,9 +63,10 @@ fun App() {
                     onValueChange = { city = it },
                     label = { Text("City") }
                 )
+                unitToggle(isCelsius = isCelsius, onToggle = { isCelsius = it })
                 Button(onClick = {
                     scope.launch {
-                        val result = getWeather(city)
+                        val result = getWeather(city, isCelsius, location)
                         weather = result.first
                         condition = result.second
                     }
@@ -73,7 +75,7 @@ fun App() {
                 }
                 Button(onClick = {
                     scope.launch {
-                        forecast = getWeatherForecast(city)
+                        forecast = getWeatherForecast(city, isCelsius, location)
                     }
                 }) {
                     Text("Get 3-Day Forecast")
@@ -85,22 +87,34 @@ fun App() {
     }
 }
 
-suspend fun getWeather(city: String): Pair<String, String> {
+@Composable
+fun unitToggle(isCelsius: Boolean, onToggle: (Boolean) -> Unit) {
+    Row {
+        Text("Fahrenheit")
+        Switch(checked = isCelsius, onCheckedChange = onToggle)
+        Text("Celsius")
+    }
+}
+
+suspend fun getWeather(city: String, isCelsius: Boolean, locat: JSONObject): Pair<String, String> {
     return withContext(Dispatchers.IO) {
         try {
-            val url = "https://api.weatherapi.com/v1/current.json?q=$city&key=$apiKey"
+            val url = "https://api.weatherapi.com/v1/current.json?q=${locat.getString("query")}&key=$apiKey"
             val request = Request.Builder().url(url).build()
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) throw IOException("Unexpected code $response")
                 val responseBody = response.body?.string() ?: return@withContext Pair("No response body", "clear")
                 val json = JSONObject(responseBody)
                 val location = json.getJSONObject("location").getString("name")
-                val tempC = json.getJSONObject("current").getDouble("temp_c")
-                val tempF = json.getJSONObject("current").getDouble("temp_f")
+                val temp = if (isCelsius) {
+                    json.getJSONObject("current").getDouble("temp_c").toString() + "°C"
+                } else {
+                    json.getJSONObject("current").getDouble("temp_f").toString() + "°F"
+                }
                 val condition: String = json.getJSONObject("current").getJSONObject("condition").getString("text")
                 val time = json.getJSONObject("location").getString("localtime")
                 Pair(
-                    "Location: $location\nTemperature: $tempF°F ($tempC°C)\nCondition: $condition\nJSON: $json",
+                    "Location: $location\nTemperature: $temp\nCondition: $condition\nJSON: $json",
                     condition
                 )
             }
@@ -110,19 +124,10 @@ suspend fun getWeather(city: String): Pair<String, String> {
     }
 }
 
-@Composable
-fun UnitToggle(isCelsius: Boolean, onToggle: (Boolean) -> Unit) {
-    Row {
-        Text("Celsius")
-        Switch(checked = isCelsius, onCheckedChange = onToggle)
-        Text("Fahrenheit")
-    }
-}
-
-suspend fun getWeatherForecast(city: String): String {
+suspend fun getWeatherForecast(city: String, isCelsius: Boolean, locat: JSONObject): String {
     return withContext(Dispatchers.IO) {
         try {
-            val url = "https://api.weatherapi.com/v1/forecast.json?q=$city&key=$apiKey&days=3"
+            val url = "https://api.weatherapi.com/v1/forecast.json?q=${locat.getString("query")}&key=$apiKey&days=3"
             val request = Request.Builder().url(url).build()
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) throw IOException("Unexpected code $response")
@@ -134,9 +139,12 @@ suspend fun getWeatherForecast(city: String): String {
                     val day = forecast.getJSONObject(i)
                     val date = day.getString("date")
                     val condition = day.getJSONObject("day").getJSONObject("condition").getString("text")
-                    val tempC = day.getJSONObject("day").getDouble("avgtemp_c")
-                    val tempF = day.getJSONObject("day").getDouble("avgtemp_f")
-                    forecastString.append("Date: $date\nCondition: $condition\nTemperature: $tempF°F ($tempC°C)\n\n")
+                    val temp = if (isCelsius) {
+                        day.getJSONObject("day").getDouble("avgtemp_c").toString() + "°C"
+                    } else {
+                        day.getJSONObject("day").getDouble("avgtemp_f").toString() + "°F"
+                    }
+                    forecastString.append("Date: $date\nCondition: $condition\nTemperature: $temp\n\n")
                 }
                 forecastString.toString()
             }

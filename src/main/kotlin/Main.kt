@@ -20,7 +20,6 @@ import org.json.JSONObject
 val dotenv: Dotenv = Dotenv.load()
 val apiKey: String = dotenv["WEATHER_KEY"]
 val client = OkHttpClient()
-val ipApiKey: String = dotenv["IP_KEY"]
 
 @Composable
 @Preview
@@ -58,12 +57,14 @@ fun App() {
                         Text(if (isDarkTheme) "☀" else "🌙")
                     }
                 }
+                settingsMenu()
                 TextField(
                     value = city,
                     onValueChange = { city = it },
                     label = { Text("City") }
                 )
                 unitToggle(isCelsius = isCelsius, onToggle = { isCelsius = it })
+
                 Button(onClick = {
                     scope.launch {
                         val result = getWeather(city, isCelsius, location)
@@ -96,6 +97,25 @@ fun unitToggle(isCelsius: Boolean, onToggle: (Boolean) -> Unit) {
     }
 }
 
+@Composable
+fun settingsMenu() {
+    var apiKey by remember { mutableStateOf("") }
+    Column {
+        TextField(
+            value = apiKey,
+            onValueChange = { apiKey = it },
+            label = { Text("API Key") }
+        )
+        Button(onClick = {
+            // Save API key to dotenv file or smth else
+            saveApiKeyToDotenv(apiKey)
+        }) {
+            Text("Save")
+        }
+    }
+}
+
+
 suspend fun getWeather(city: String, isCelsius: Boolean, locat: JSONObject): Pair<String, String> {
     return withContext(Dispatchers.IO) {
         try {
@@ -118,6 +138,8 @@ suspend fun getWeather(city: String, isCelsius: Boolean, locat: JSONObject): Pai
                     condition
                 )
             }
+        } catch (e: IOException) {
+            Pair("Network error: ${e.message}", "clear")
         } catch (e: Exception) {
             Pair("Error fetching weather: ${e.message}", "clear")
         }
@@ -148,6 +170,8 @@ suspend fun getWeatherForecast(city: String, isCelsius: Boolean, locat: JSONObje
                 }
                 forecastString.toString()
             }
+        } catch (e: IOException) {
+            "Network error: ${e.message}"
         } catch (e: Exception) {
             "Error fetching weather forecast: ${e.message}"
         }

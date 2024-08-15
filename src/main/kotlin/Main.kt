@@ -19,6 +19,7 @@ import java.io.IOException
 import io.github.cdimascio.dotenv.Dotenv
 import org.json.JSONObject
 
+
 val dotenv: Dotenv = Dotenv.load()
 val apiKey: String = dotenv["WEATHER_KEY"]
 val client = OkHttpClient()
@@ -37,6 +38,7 @@ fun App() {
 
     val colors: Colors = if (isDarkTheme) darkColors() else lightColors()
     val backgroundColor: Color = if (isDarkTheme) Color.DarkGray else Color.White
+    val textColor: Color = if (isDarkTheme) Color.White else Color.Black
 
     val backgroundImage: ImageBitmap = useResource(
         when {
@@ -221,7 +223,9 @@ suspend fun getWeatherForecast(city: String, isCelsius: Boolean, locat: JSONObje
 }
 
 fun main() = application {
+
     Window(onCloseRequest = ::exitApplication) {
+
         App()
     }
 }

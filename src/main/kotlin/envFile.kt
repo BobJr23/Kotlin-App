@@ -7,3 +7,8 @@ fun saveApiKeyToDotenv(apiKey: String) {
     val content = "WEATHER_KEY=$apiKey\n"
     Files.write(dotenvPath, content.toByteArray(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
 }
+
+
+fun main() {
+    saveApiKeyToDotenv("1234567890")
+}

@@ -60,11 +60,11 @@ fun App() {
                 Column {
                     Row {
                         Text("Weather App", style = MaterialTheme.typography.h4, color = Color.White)
-                        Button(onClick = {
-                            isDarkTheme = !isDarkTheme
-                        }) {
-                            Text(if (isDarkTheme) "☀" else "🌙")
-                        }
+//                        Button(onClick = {
+//                            isDarkTheme = !isDarkTheme
+//                        }) {
+//                            Text(if (isDarkTheme) "☀" else "🌙")
+//                        }
                     }
                     settingsMenu()
                     TextField(
